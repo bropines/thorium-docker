@@ -1,13 +1,21 @@
 # Multi-stage build for Thorium headless browser
 FROM debian:bullseye-slim AS base
 
-# Install system dependencies for headless browser
+# Install system dependencies and fonts for headless browser
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     fonts-liberation \
+    fonts-freefont-ttf \
+    fonts-wqy-zenhei \
+    fonts-noto-cjk \
+    fonts-noto-cjk-extra \
+    fonts-noto-color-emoji \
+    fonts-dejavu-core \
     libgtk-3-0 \
     libnss3 \
     libnspr4 \
+    libfreetype6 \
+    libharfbuzz0b \
     libxcomposite1 \
     libxdamage1 \
     libxrandr2 \
@@ -21,10 +29,7 @@ RUN apt-get update && apt-get install -y \
     libatspi2.0-0 \
     libxshmfence1 \
     libdrm2 \
-    fonts-noto-cjk \
-    fonts-noto-cjk-extra \
-    fonts-noto-color-emoji \
-    fonts-dejavu-core \
+    ffmpeg \
     locales \
     && rm -rf /var/lib/apt/lists/*
 
@@ -34,10 +39,10 @@ ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
 
-# Create non-root user for security
+# Create non-root user for security and prepare data profile directory
 RUN groupadd -r thorium && useradd -r -g thorium -G audio,video thorium \
-    && mkdir -p /home/thorium /config \
-    && chown -R thorium:thorium /home/thorium /config
+    && mkdir -p /home/thorium /config /data/thorium_profile \
+    && chown -R thorium:thorium /home/thorium /config /data/thorium_profile
 
 # Thorium installation stage
 FROM base AS thorium-install
@@ -83,35 +88,32 @@ RUN echo "Verifying installation..." && \
 # Create symlink
 RUN ln -sf /opt/chromium.org/thorium/thorium-browser /usr/bin/thorium
 
-# Test version
-RUN /opt/chromium.org/thorium/thorium-browser --version
-
 # Create wrapper script for better container compatibility
 RUN echo '#!/bin/bash' > /usr/bin/wrapped-thorium
 RUN echo 'BIN=/opt/chromium.org/thorium/thorium-browser' >> /usr/bin/wrapped-thorium
 RUN echo 'if ! pgrep thorium > /dev/null; then' >> /usr/bin/wrapped-thorium
+RUN echo '  rm -f /data/thorium_profile/Singleton*' >> /usr/bin/wrapped-thorium
 RUN echo '  rm -f $HOME/.config/thorium/Singleton*' >> /usr/bin/wrapped-thorium
 RUN echo 'fi' >> /usr/bin/wrapped-thorium
-RUN echo '${BIN} --ignore-gpu-blocklist --no-first-run --no-sandbox --password-store=basic --simulate-outdated-no-au="Tue, 31 Dec 2099 23:59:59 GMT" --test-type --user-data-dir "$@"' >> /usr/bin/wrapped-thorium
+RUN echo 'exec ${BIN} "$@"' >> /usr/bin/wrapped-thorium
 RUN chmod +x /usr/bin/wrapped-thorium
 
 # Add instruction set info to container
 RUN echo "Thorium ${THORIUM_VERSION} built for ${INSTRUCTION_SET}" > /etc/thorium-info.txt
 
-# Switch back to thorium user
-USER thorium
-
 # Final stage
 FROM thorium-install
 
-# Set working directory
 WORKDIR /home/thorium
+
+# Declare volume for persistent CDP session profiles
+VOLUME ["/data/thorium_profile"]
 
 # Switch to non-root user
 USER thorium
 
-# Expose port for remote debugging
+# Expose port for CDP remote debugging
 EXPOSE 9222
 
-# Default command for headless mode
-CMD ["/usr/bin/wrapped-thorium", "--headless", "--disable-gpu", "--disable-dev-shm-usage", "--remote-debugging-port=9222", "--disable-web-security", "--disable-features=VizDisplayCompositor"] 
+# Default command for headless CDP mode
+CMD ["/usr/bin/wrapped-thorium", "--headless=new", "--no-sandbox", "--disable-dev-shm-usage", "--remote-debugging-port=9222", "--remote-debugging-address=0.0.0.0", "--user-data-dir=/data/thorium_profile", "--disable-gpu", "--disable-software-rasterizer"]

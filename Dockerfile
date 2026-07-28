@@ -52,7 +52,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Set Thorium version and instruction set
-ARG THORIUM_VERSION=M130.0.6723.174
+ARG THORIUM_VERSION=M138.0.7204.303
 ARG INSTRUCTION_SET=AVX2
 ENV THORIUM_VERSION=${THORIUM_VERSION}
 ENV INSTRUCTION_SET=${INSTRUCTION_SET}

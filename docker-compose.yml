@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        THORIUM_VERSION: M130.0.6723.174
+        THORIUM_VERSION: M138.0.7204.303
         INSTRUCTION_SET: AVX2
     container_name: thorium-headless-avx2
     ports:
@@ -32,7 +32,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        THORIUM_VERSION: M130.0.6723.174
+        THORIUM_VERSION: M138.0.7204.303
         INSTRUCTION_SET: AVX
     container_name: thorium-headless-avx
     ports:
@@ -58,7 +58,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        THORIUM_VERSION: M130.0.6723.174
+        THORIUM_VERSION: M138.0.7204.303
         INSTRUCTION_SET: SSE3
     container_name: thorium-headless-sse3
     ports:
@@ -84,7 +84,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        THORIUM_VERSION: M130.0.6723.174
+        THORIUM_VERSION: M138.0.7204.303
         INSTRUCTION_SET: SSE4
     container_name: thorium-headless-sse4
     ports:
@@ -111,7 +111,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        THORIUM_VERSION: M130.0.6723.174
+        THORIUM_VERSION: M138.0.7204.303
         INSTRUCTION_SET: AVX2
     container_name: thorium-test
     ports:

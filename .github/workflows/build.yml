@@ -1,4 +1,4 @@
-name: Build and Push Docker Images
+name: Build and Push Alpine Docker Images
 
 on:
   push:
@@ -7,14 +7,9 @@ on:
   pull_request:
     branches: [ main, master ]
   schedule:
-    # Run daily at 2 AM UTC to check for new versions
     - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Thorium version to build (e.g., M138.0.7204.303)'
-        required: false
-        default: ''
       instruction_set:
         description: 'Instruction set to build (AVX2, AVX, SSE3, SSE4, or all)'
         required: false
@@ -25,63 +20,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  check-version:
-    runs-on: ubuntu-latest
-    outputs:
-      latest-version: ${{ steps.get-version.outputs.version }}
-      should-build: ${{ steps.check-version.outputs.should-build }}
-    permissions:
-      contents: read
-      packages: read
-    steps:
-      - name: Get latest Thorium version
-        id: get-version
-        run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          else
-            # Get latest version from GitHub releases that has .deb assets
-            LATEST_VERSION=$(curl -s https://api.github.com/repos/Alex313031/thorium/releases | jq -r '[.[] | select(.assets[]?.name | endswith(".deb"))][0].tag_name')
-            if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
-              LATEST_VERSION="M138.0.7204.303"
-            fi
-            echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check if versions already exist
-        id: check-version
-        run: |
-          VERSION="${{ steps.get-version.outputs.version }}"
-          
-          if [ "${{ github.event.inputs.instruction_set }}" = "all" ] || [ -z "${{ github.event.inputs.instruction_set }}" ]; then
-            INSTRUCTION_SETS="AVX2 AVX SSE3 SSE4"
-          else
-            INSTRUCTION_SETS="${{ github.event.inputs.instruction_set }}"
-          fi
-          
-          for SET in $INSTRUCTION_SETS; do
-            IMAGE_REF=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION}-${SET}" | tr '[:upper:]' '[:lower:]')
-            if docker manifest inspect ${IMAGE_REF} >/dev/null 2>&1; then
-              echo "Version ${VERSION}-${SET} already exists in registry"
-            else
-              echo "Version ${VERSION}-${SET} not found, will build"
-              echo "should-build=true" >> $GITHUB_OUTPUT
-              exit 0
-            fi
-          done
-          
-          echo "should-build=false" >> $GITHUB_OUTPUT
-
-  build-matrix:
-    needs: check-version
-    if: needs.check-version.outputs.should-build == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+  build-alpine-matrix:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -110,9 +49,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ needs.check-version.outputs.latest-version }}-${{ matrix.instruction_set }}
-            type=raw,value=latest-${{ matrix.instruction_set }},enable={{is_default_branch}}
-            type=raw,value=${{ matrix.instruction_set }},enable={{is_default_branch}}
+            type=raw,value=latest-${{ matrix.instruction_set }}
+            type=raw,value=${{ matrix.instruction_set }}
+            type=raw,value=alpine-${{ matrix.instruction_set }}
             type=raw,value=latest,enable=${{ matrix.instruction_set == 'AVX2' }}
 
       - name: Check if instruction set should be built
@@ -125,7 +64,7 @@ jobs:
             echo "should-build=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build and push Docker image (Matrix)
+      - name: Build and push Alpine Docker image (${{ matrix.instruction_set }})
         if: steps.check-instruction-set.outputs.should-build == 'true'
         uses: docker/build-push-action@v5
         with:
@@ -135,46 +74,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            THORIUM_VERSION=${{ needs.check-version.outputs.latest-version }}
             INSTRUCTION_SET=${{ matrix.instruction_set }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  build-alpine:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=alpine
-            type=raw,value=latest-alpine
-
-      - name: Build and push Docker image (Alpine)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.alpine
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

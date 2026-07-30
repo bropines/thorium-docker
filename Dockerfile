@@ -98,40 +98,50 @@ RUN echo "Installing Thorium ${THORIUM_VERSION} for ${INSTRUCTION_SET}..." && \
 # Symlink binary for convenience
 RUN ln -sf /opt/chromium.org/thorium/thorium-browser /usr/bin/thorium-browser || true
 
-# Create Clean Startup Wrapper Script: Supports xauth, Xvfb virtual display (-a flag), stealth UA and flags
-RUN echo '#!/bin/bash' > /usr/bin/wrapped-thorium && \
-    echo 'BIN=/opt/chromium.org/thorium/thorium-browser' >> /usr/bin/wrapped-thorium && \
-    echo 'if [ ! -f "$BIN" ]; then BIN=$(which thorium-browser || which thorium); fi' >> /usr/bin/wrapped-thorium && \
-    echo 'if ! pgrep thorium > /dev/null; then' >> /usr/bin/wrapped-thorium && \
-    echo '  rm -f /data/thorium_profile/Singleton*' >> /usr/bin/wrapped-thorium && \
-    echo 'fi' >> /usr/bin/wrapped-thorium && \
-    echo 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:127.0.0.1:9223 &' >> /usr/bin/wrapped-thorium && \
-    echo 'WS="${WINDOW_SIZE:-1280,720}"' >> /usr/bin/wrapped-thorium && \
-    echo 'FLAGS=("--no-sandbox" "--disable-dev-shm-usage" "--user-data-dir=/data/thorium_profile" "--remote-debugging-port=9223" "--remote-debugging-address=127.0.0.1" "--remote-allow-origins=*" "--window-size=${WS}")' >> /usr/bin/wrapped-thorium && \
-    echo 'if [ "$DISABLE_PASSKEYS" = "true" ]; then' >> /usr/bin/wrapped-thorium && \
-    echo '  FLAGS+=("--disable-features=WebAuthentication,WebAuthenticationUI,PasskeyRegistration,WebAuthenticationConditionalUI")' >> /usr/bin/wrapped-thorium && \
-    echo 'fi' >> /usr/bin/wrapped-thorium && \
-    echo 'if [ "$BLOCK_NEW_WINDOWS" = "true" ]; then' >> /usr/bin/wrapped-thorium && \
-    echo '  FLAGS+=("--block-new-web-contents")' >> /usr/bin/wrapped-thorium && \
-    echo 'fi' >> /usr/bin/wrapped-thorium && \
-    echo 'if [ "$DISABLE_AUTOMATION" = "true" ]; then' >> /usr/bin/wrapped-thorium && \
-    echo '  FLAGS+=("--disable-blink-features=AutomationControlled")' >> /usr/bin/wrapped-thorium && \
-    echo 'fi' >> /usr/bin/wrapped-thorium && \
-    echo 'if [ -n "$USER_AGENT" ]; then' >> /usr/bin/wrapped-thorium && \
-    echo '  FLAGS+=("--user-agent=$USER_AGENT")' >> /usr/bin/wrapped-thorium && \
-    echo 'fi' >> /usr/bin/wrapped-thorium && \
-    echo 'if [ -n "$EXTRA_FLAGS" ]; then' >> /usr/bin/wrapped-thorium && \
-    echo '  echo "Appending EXTRA_FLAGS: $EXTRA_FLAGS"' >> /usr/bin/wrapped-thorium && \
-    echo '  eval "EXTRA_ARR=($EXTRA_FLAGS)"' >> /usr/bin/wrapped-thorium && \
-    echo '  FLAGS+=("${EXTRA_ARR[@]}")' >> /usr/bin/wrapped-thorium && \
-    echo 'fi' >> /usr/bin/wrapped-thorium && \
-    echo 'if [ "$USE_XVFB" = "true" ]; then' >> /usr/bin/wrapped-thorium && \
-    echo '  echo "Starting with Xvfb virtual display (${WS})..."' >> /usr/bin/wrapped-thorium && \
-    echo '  exec xvfb-run -a --server-args="-screen 0 1280x720x24" ${BIN} "${FLAGS[@]}" "$@"' >> /usr/bin/wrapped-thorium && \
-    echo 'else' >> /usr/bin/wrapped-thorium && \
-    echo '  exec ${BIN} --headless=new --disable-gpu --disable-software-rasterizer "${FLAGS[@]}" "$@"' >> /usr/bin/wrapped-thorium && \
-    echo 'fi' >> /usr/bin/wrapped-thorium && \
-    chmod +x /usr/bin/wrapped-thorium
+# Create Clean Startup Wrapper Script using unquoted heredoc block
+RUN cat << 'EOF' > /usr/bin/wrapped-thorium
+#!/bin/bash
+BIN=/opt/chromium.org/thorium/thorium-browser
+if [ ! -f "$BIN" ]; then BIN=$(which thorium-browser || which thorium); fi
+if ! pgrep thorium > /dev/null; then
+  rm -f /data/thorium_profile/Singleton*
+fi
+socat TCP-LISTEN:9222,fork,reuseaddr TCP:127.0.0.1:9223 &
+WS="${WINDOW_SIZE:-1280,720}"
+FLAGS=(
+  "--no-sandbox"
+  "--disable-dev-shm-usage"
+  "--user-data-dir=/data/thorium_profile"
+  "--remote-debugging-port=9223"
+  "--remote-debugging-address=127.0.0.1"
+  "--remote-allow-origins=*"
+  "--window-size=${WS}"
+)
+if [ "$DISABLE_PASSKEYS" = "true" ]; then
+  FLAGS+=("--disable-features=WebAuthentication,WebAuthenticationUI,PasskeyRegistration,WebAuthenticationConditionalUI")
+fi
+if [ "$BLOCK_NEW_WINDOWS" = "true" ]; then
+  FLAGS+=("--block-new-web-contents")
+fi
+if [ "$DISABLE_AUTOMATION" = "true" ]; then
+  FLAGS+=("--disable-blink-features=AutomationControlled")
+fi
+if [ -n "$USER_AGENT" ]; then
+  FLAGS+=("--user-agent=$USER_AGENT")
+fi
+if [ -n "$EXTRA_FLAGS" ]; then
+  echo "Appending EXTRA_FLAGS: $EXTRA_FLAGS"
+  eval "EXTRA_ARR=($EXTRA_FLAGS)"
+  FLAGS+=("${EXTRA_ARR[@]}")
+fi
+if [ "$USE_XVFB" = "true" ]; then
+  echo "Starting with Xvfb virtual display (${WS})..."
+  exec xvfb-run -a --server-args="-screen 0 1280x720x24" "${BIN}" "${FLAGS[@]}" "$@"
+else
+  exec "${BIN}" --headless=new --disable-gpu --disable-software-rasterizer "${FLAGS[@]}" "$@"
+fi
+EOF
+RUN chmod +x /usr/bin/wrapped-thorium
 
 # Write container build information file
 RUN echo "Thorium ${THORIUM_VERSION} (${INSTRUCTION_SET}) built on Debian Bookworm Slim" > /etc/thorium-info.txt

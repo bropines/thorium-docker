@@ -80,10 +80,15 @@ ENV THORIUM_VERSION=${THORIUM_VERSION} \
 # Download & Install Official Thorium Package from GitHub Releases
 RUN echo "Installing Thorium ${THORIUM_VERSION} for ${INSTRUCTION_SET}..." && \
     CLEAN_VER="${THORIUM_VERSION#M}" && \
-    DEB_URL="https://github.com/Alex313031/thorium/releases/download/${THORIUM_VERSION}/thorium-browser_${CLEAN_VER}_${INSTRUCTION_SET}.deb" && \
+    DEB_URL=$(curl -s "https://api.github.com/repos/Alex313031/thorium/releases/tags/${THORIUM_VERSION}" | grep "browser_download_url" | grep -i "${INSTRUCTION_SET}" | grep "\.deb" | head -n 1 | cut -d '"' -f 4) && \
+    if [ -z "$DEB_URL" ]; then \
+        DEB_URL=$(curl -s "https://api.github.com/repos/Alex313031/thorium/releases/tags/${THORIUM_VERSION}" | grep "browser_download_url" | grep "\.deb" | head -n 1 | cut -d '"' -f 4); \
+    fi && \
+    if [ -z "$DEB_URL" ]; then \
+        DEB_URL="https://github.com/Alex313031/thorium/releases/download/${THORIUM_VERSION}/thorium-browser_${CLEAN_VER}_${INSTRUCTION_SET}.deb"; \
+    fi && \
     echo "Fetching ${DEB_URL}" && \
-    wget -q "${DEB_URL}" -O /tmp/thorium.deb || \
-    (echo "Retrying alternative URL..." && wget -q "https://github.com/Alex313031/thorium/releases/download/${THORIUM_VERSION}/thorium_${CLEAN_VER}_amd64_${INSTRUCTION_SET}.deb" -O /tmp/thorium.deb) && \
+    wget -q "${DEB_URL}" -O /tmp/thorium.deb && \
     apt-get update && \
     apt-get install -y /tmp/thorium.deb && \
     rm /tmp/thorium.deb && \

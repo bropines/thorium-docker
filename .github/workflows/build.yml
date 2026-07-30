@@ -19,7 +19,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   STABLE_VERSION: "M138.0.7204.303"
-  BETA_VERSION: "M150.0.7871.101"
+  BETA_VERSION: "M138Beta1"
 
 jobs:
   build-thorium-matrix:

@@ -114,7 +114,6 @@ if [ ! -f "$BIN" ]; then BIN=$(which thorium-browser || which thorium); fi
 # Remove stale profile lock files unconditionally before startup
 rm -f /data/thorium_profile/Singleton*
 
-socat TCP-LISTEN:9222,fork,reuseaddr,retry=10 TCP:127.0.0.1:9223 &
 WS="${WINDOW_SIZE:-1280,720}"
 WS_X="${WS//,/x}"
 FLAGS=(
@@ -123,8 +122,8 @@ FLAGS=(
   "--no-first-run"
   "--no-default-browser-check"
   "--user-data-dir=/data/thorium_profile"
-  "--remote-debugging-port=9223"
-  "--remote-debugging-address=127.0.0.1"
+  "--remote-debugging-port=9222"
+  "--remote-debugging-address=0.0.0.0"
   "--remote-allow-origins=*"
   "--window-size=${WS}"
   "--disable-gpu"

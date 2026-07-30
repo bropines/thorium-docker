@@ -1,76 +1,81 @@
-# Thorium Docker (Stable & Beta)
+# Thorium Docker (Headless & Automation Browser)
 
-Высокопроизводительный Docker-образ браузера **Thorium**, оптимизированный для работы в headless-режиме, отладки по CDP, веб-скрапинга и автоматизации (Playwright, Selenium, Puppeteer). Поддерживает различные наборы инструкций CPU.
+[![Build & Push](https://github.com/bropines/thorium-docker/actions/workflows/build.yml/badge.svg)](https://github.com/bropines/thorium-docker/actions/workflows/build.yml)
+[![Performance Benchmark](https://github.com/bropines/thorium-docker/actions/workflows/benchmark.yml/badge.svg)](https://github.com/bropines/thorium-docker/actions/workflows/benchmark.yml)
+[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](LICENSE)
 
----
+[English](README.md) | [Русский](README.ru.md)
 
-## 📌 Обзор проекта
-
-[Thorium](https://github.com/Alex313031/thorium) — это оптимизированная по производительности версия браузера на базе Chromium (прирост производительности на 8%-38% по сравнению с обычным Chromium).
-
-Этот проект предоставляет автоматическую сборку и публикацию Docker-образов в **GitHub Container Registry (GHCR)**:
-
-- 🚀 **Официальные сборки Thorium**: Установка оригинальных `.deb` пакетов [Alex313031/thorium](https://github.com/Alex313031/thorium/releases).
-- 🔄 **Два канала релиза**:
-  - **`stable` / `latest`**: Стабильная версия (Thorium M138).
-  - **`beta`**: Свежая бета-версия (Thorium M138Beta1 / M150).
-- ⚡ **Поддержка наборов инструкций CPU**: Сборки под `AVX2`, `AVX`, `SSE3`, `SSE4`.
-- 🌍 **Мультиязычность и шрифты**: Встроенные шрифты CJK (китайский, японский, корейский), кириллица, Emoji и FreeFont (`fonts-wqy-zenhei`, `fonts-noto-color-emoji`, `fonts-liberation`, `fonts-dejavu`).
-- 🎬 **Полный медиа-стек**: Кодеки `ffmpeg`, Widevine DRM и аудио-подсистема.
-- 🔒 **Безопасность**: Запуск от имени не-root пользователя (`thorium`).
-- 🎛️ **Динамические флаги БЕЗ ПЕРЕСБОРКИ**:
-  - `EXTRA_FLAGS`: Прокидывайте **любые флаговые аргументы Chromium** прямо в `docker-compose.yml` без пересборки контейнера.
-  - `DISABLE_PASSKEYS=true/false`: Отключает всплывающие окна Passkey / WebAuthn (по умолчанию `true`).
-  - `BLOCK_NEW_WINDOWS=true/false`: Запрещает браузеру спавнить новые окна/вкладки (по умолчанию `true`).
-  - `DISABLE_AUTOMATION=true/false`: Скрывает `AutomationControlled` (по умолчанию `true`).
-  - `USER_AGENT`: Произвольный User-Agent.
-- 🖥️ **Поддержка Headless и Xvfb (Virtual Display)**:
-  - Режим по умолчанию: `--headless=new`.
-  - Режим Xvfb: Установите переменную `USE_XVFB=true`, чтобы запустить браузер на виртуальном дисплее (обходит проверки на headless у Cloudflare / Google).
-- 🔌 **Удаленная отладка**: Поддержка Chrome DevTools Remote Debugging (порт 9222).
+High-performance Docker container for the **Thorium Browser**, optimized for headless operations, Chrome DevTools Protocol (CDP) remote debugging, web scraping, and automation frameworks (Playwright, Selenium, Puppeteer). Supports multiple CPU instruction set builds.
 
 ---
 
-## ⚡ Поддержка инструкций CPU
+## 📌 Project Overview
 
-| Набор инструкций | Производительность | Совместимость | Рекомендуемый сценарий |
+[Thorium](https://github.com/Alex313031/thorium) is a performance-optimized build of Chromium (boasting an 8%-38% speedup over stock Chromium).
+
+This repository provides automated Docker builds published to **GitHub Container Registry (GHCR)**:
+
+- 🚀 **Official Thorium Releases**: Installs authentic `.deb` packages directly from [Alex313031/thorium](https://github.com/Alex313031/thorium/releases).
+- 🔄 **Dual Release Channels**:
+  - **`stable` / `latest`**: Production-ready stable release (Thorium M138).
+  - **`beta`**: Cutting-edge beta release (Thorium M138Beta1 / M150).
+- ⚡ **CPU Instruction Sets**: Tailored builds for `AVX2`, `AVX`, `SSE3`, and `SSE4`.
+- 🌍 **Font & Language Support**: Pre-installed CJK (Chinese, Japanese, Korean), Cyrillic, Emoji, and FreeFont packages (`fonts-wqy-zenhei`, `fonts-noto-color-emoji`, `fonts-liberation`, `fonts-dejavu`).
+- 🎬 **Full Media Capabilities**: `ffmpeg` codecs, Widevine DRM support, and audio subsystem integrations.
+- 🔒 **Security Hardening**: Non-root container process execution (`thorium` user).
+- 🎛️ **Dynamic Flag Configuration (No Image Rebuild Required)**:
+  - `EXTRA_FLAGS`: Pass any custom Chromium flags directly in `docker-compose.yml` or `docker run -e`.
+  - `DISABLE_PASSKEYS=true/false`: Optionally disable Passkey / WebAuthn popups.
+  - `BLOCK_NEW_WINDOWS=true/false`: Optionally prevent opening new windows or popup tabs.
+  - `DISABLE_AUTOMATION=true/false`: Optionally strip `AutomationControlled` flags.
+  - `USER_AGENT`: Custom User-Agent string override.
+- 🖥️ **Headless & Virtual Display (Xvfb)**:
+  - Default mode: `--headless=new`.
+  - Xvfb mode: Set `USE_XVFB=true` to render on a virtual X11 display (bypassing anti-bot / headless detection).
+- 🔌 **Remote Debugging**: Native Chrome DevTools Remote Debugging on port `9222`.
+
+---
+
+## ⚡ CPU Instruction Sets
+
+| Instruction Set | Performance | Compatibility | Recommended Use Case |
 |---|---|---|---|
-| **AVX2** | Максимальная | Современные CPU (2013+) | Продакшн, высокая нагрузка |
-| **AVX** | Высокая | Более старые CPU (2011+) | Баланс производительности и совместимости |
-| **SSE3** | Средняя | Старые CPU (2004+) | Базовая совместимость |
-| **SSE4** | Базовая | Максимально широкая | Максимальная совместимость |
+| **AVX2** | Maximum | Modern CPUs (2013+) | Production, high load (Recommended) |
+| **AVX** | High | Older CPUs (2011+) | Balanced performance & compatibility |
+| **SSE3** | Medium | Legacy CPUs (2004+) | Basic compatibility |
+| **SSE4** | Base | Maximum range | Maximum hardware compatibility |
 
 ---
 
-## 🐳 Теги контейнеров в GHCR (`ghcr.io/bropines/thorium-docker`)
+## 🐳 Container Tags in GHCR (`ghcr.io/bropines/thorium-docker`)
 
-### Стабильный канал (Stable / Latest):
-- `latest`, `stable`, `latest-AVX2`, `stable-AVX2` — Версия AVX2 (Рекомендуется)
-- `latest-AVX`, `stable-AVX` — Версия AVX
-- `latest-SSE3`, `stable-SSE3` — Версия SSE3
-- `latest-SSE4`, `stable-SSE4` — Версия SSE4
+### Stable Channel:
+- `latest`, `stable`, `latest-AVX2`, `stable-AVX2` — Recommended AVX2 build
+- `latest-AVX`, `stable-AVX` — AVX build
+- `latest-SSE3`, `stable-SSE3` — SSE3 build
+- `latest-SSE4`, `stable-SSE4` — SSE4 build
 
-### Бета канал (Beta):
-- `beta`, `beta-AVX2` — Бета-версия AVX2
-- `beta-AVX`, `beta-SSE3`, `beta-SSE4` — Бета-версии под другие CPU
+### Beta Channel:
+- `beta`, `beta-AVX2` — Beta AVX2 build
+- `beta-AVX`, `beta-SSE3`, `beta-SSE4` — Beta builds for other CPU architectures
 
 ---
 
-## 🚀 Быстрый старт
+## 🚀 Quick Start
 
-### Использование Docker run
+### Using Docker Run
 
 ```bash
-# Выкачать и запустить версию AVX2
 docker run -d \
-  --name thorium-headless \
+  --name thorium-browser \
   -p 9222:9222 \
   -v ./profile:/data/thorium_profile \
   --security-opt seccomp=unconfined \
   ghcr.io/bropines/thorium-docker:latest-AVX2
 ```
 
-### Использование Docker Compose
+### Using Docker Compose
 
 ```yaml
 services:
@@ -81,9 +86,7 @@ services:
     network_mode: "host"
     environment:
       - WINDOW_SIZE=1280,720
-      - USE_XVFB=false
       - DISABLE_PASSKEYS=true
-      - BLOCK_NEW_WINDOWS=true
       - EXTRA_FLAGS=--proxy-pac-url=http://127.0.0.1:21048/proxy.pac --incognito
     volumes:
       - ./profile:/data/thorium_profile
@@ -91,7 +94,7 @@ services:
 
 ---
 
-## 💻 Подключение автотестов и скраперов
+## 💻 Automation Examples
 
 ### Selenium (Python):
 ```python
@@ -123,25 +126,25 @@ const { chromium } = require('playwright');
 
 ---
 
-## 📊 Бенчмарки производительности
+## 📊 Performance Benchmarks
 
-Проект содержит автоматизированную систему бенчмаркинга (`benchmark/`), которая регулярно измеряет скорость холодного и горячего запуска Thorium под разными инструкциями CPU в сравнении с другими headless-браузерами.
+This project includes an automated benchmarking suite (`benchmark/`) to measure cold and hot startup times across CPU architectures.
 
-### Локальная сборка и запуск тестов
+### Local Development & Testing
 
 ```bash
-# Сборка версии AVX2 (по умолчанию)
+# Build AVX2 version (default)
 make build-avx2
 
-# Сборка всех версий
+# Build all instruction set versions
 make build-all
 
-# Запуск тестов бенчмарка
+# Run benchmark suite
 make test
 ```
 
 ---
 
-## 📄 Лицензия
+## 📄 License
 
 BSD 3-Clause License

@@ -4,7 +4,7 @@ FROM debian:bookworm-slim AS base
 # Prevent interactive prompts during apt installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install core system dependencies, media codecs, X11/Xvfb tools, and full font packs
+# Install core system dependencies, media codecs, X11/Xvfb tools, xauth, and full font packs
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     socat \
     xvfb \
+    xauth \
     x11vnc \
     locales \
     ffmpeg \
@@ -97,7 +98,7 @@ RUN echo "Installing Thorium ${THORIUM_VERSION} for ${INSTRUCTION_SET}..." && \
 # Symlink binary for convenience
 RUN ln -sf /opt/chromium.org/thorium/thorium-browser /usr/bin/thorium-browser || true
 
-# Create Clean Startup Wrapper Script: Only essential base flags in image, everything else configurable via compose
+# Create Clean Startup Wrapper Script: Supports xauth, Xvfb virtual display, stealth UA and flags
 RUN echo '#!/bin/bash' > /usr/bin/wrapped-thorium && \
     echo 'BIN=/opt/chromium.org/thorium/thorium-browser' >> /usr/bin/wrapped-thorium && \
     echo 'if [ ! -f "$BIN" ]; then BIN=$(which thorium-browser || which thorium); fi' >> /usr/bin/wrapped-thorium && \
@@ -105,7 +106,8 @@ RUN echo '#!/bin/bash' > /usr/bin/wrapped-thorium && \
     echo '  rm -f /data/thorium_profile/Singleton*' >> /usr/bin/wrapped-thorium && \
     echo 'fi' >> /usr/bin/wrapped-thorium && \
     echo 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:127.0.0.1:9223 &' >> /usr/bin/wrapped-thorium && \
-    echo 'FLAGS=("--no-sandbox" "--disable-dev-shm-usage" "--user-data-dir=/data/thorium_profile" "--remote-debugging-port=9223" "--remote-debugging-address=127.0.0.1" "--remote-allow-origins=*")' >> /usr/bin/wrapped-thorium && \
+    echo 'WS="${WINDOW_SIZE:-1280,720}"' >> /usr/bin/wrapped-thorium && \
+    echo 'FLAGS=("--no-sandbox" "--disable-dev-shm-usage" "--user-data-dir=/data/thorium_profile" "--remote-debugging-port=9223" "--remote-debugging-address=127.0.0.1" "--remote-allow-origins=*" "--window-size=${WS}")' >> /usr/bin/wrapped-thorium && \
     echo 'if [ "$DISABLE_PASSKEYS" = "true" ]; then' >> /usr/bin/wrapped-thorium && \
     echo '  FLAGS+=("--disable-features=WebAuthentication,WebAuthenticationUI,PasskeyRegistration,WebAuthenticationConditionalUI")' >> /usr/bin/wrapped-thorium && \
     echo 'fi' >> /usr/bin/wrapped-thorium && \
@@ -124,8 +126,8 @@ RUN echo '#!/bin/bash' > /usr/bin/wrapped-thorium && \
     echo '  FLAGS+=("${EXTRA_ARR[@]}")' >> /usr/bin/wrapped-thorium && \
     echo 'fi' >> /usr/bin/wrapped-thorium && \
     echo 'if [ "$USE_XVFB" = "true" ]; then' >> /usr/bin/wrapped-thorium && \
-    echo '  echo "Starting with Xvfb virtual display..."' >> /usr/bin/wrapped-thorium && \
-    echo '  exec xvfb-run --server-args="-screen 0 ${WINDOW_SIZE:-1280x720x24}" ${BIN} "${FLAGS[@]}" "$@"' >> /usr/bin/wrapped-thorium && \
+    echo '  echo "Starting with Xvfb virtual display (${WS})..."' >> /usr/bin/wrapped-thorium && \
+    echo '  exec xvfb-run -a --server-args="-screen 0 1280x720x24" ${BIN} "${FLAGS[@]}" "$@"' >> /usr/bin/wrapped-thorium && \
     echo 'else' >> /usr/bin/wrapped-thorium && \
     echo '  exec ${BIN} --headless=new --disable-gpu --disable-software-rasterizer "${FLAGS[@]}" "$@"' >> /usr/bin/wrapped-thorium && \
     echo 'fi' >> /usr/bin/wrapped-thorium && \

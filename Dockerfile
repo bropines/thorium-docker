@@ -110,7 +110,9 @@ RUN cat << 'EOF' > /usr/bin/wrapped-thorium
 #!/bin/bash
 set -e
 
-# Remove stale profile lock files unconditionally before startup
+# Ensure profile directory permissions and remove stale lock files unconditionally before startup
+mkdir -p /data/thorium_profile
+chmod -R 777 /data/thorium_profile 2>/dev/null || true
 rm -f /data/thorium_profile/Singleton*
 
 WS="${WINDOW_SIZE:-1280,720}"

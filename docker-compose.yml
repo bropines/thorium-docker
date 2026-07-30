@@ -14,7 +14,7 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: 512M
+          memory: 2G
 
   # Alpine AVX2
   thorium-headless-avx2:

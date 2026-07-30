@@ -89,5 +89,6 @@ jobs:
           build-args: |
             THORIUM_VERSION=${{ steps.set-version.outputs.version }}
             INSTRUCTION_SET=${{ matrix.instruction_set }}
+            GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

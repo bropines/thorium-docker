@@ -75,21 +75,27 @@ RUN groupadd -r thorium && useradd -r -g thorium -G audio,video thorium \
 # Build Arguments for Version and CPU Instruction Set
 ARG THORIUM_VERSION=M138.0.7204.303
 ARG INSTRUCTION_SET=AVX2
+ARG GITHUB_TOKEN=""
 ENV THORIUM_VERSION=${THORIUM_VERSION} \
     INSTRUCTION_SET=${INSTRUCTION_SET}
 
 # Download & Install Official Thorium Package from GitHub Releases
 RUN echo "Installing Thorium ${THORIUM_VERSION} for ${INSTRUCTION_SET}..." && \
     CLEAN_VER="${THORIUM_VERSION#M}" && \
-    DEB_URL=$(curl -s "https://api.github.com/repos/Alex313031/thorium/releases/tags/${THORIUM_VERSION}" | grep "browser_download_url" | grep -i "${INSTRUCTION_SET}" | grep "\.deb" | head -n 1 | cut -d '"' -f 4) && \
+    CURL_HDR="" && \
+    if [ -n "$GITHUB_TOKEN" ]; then CURL_HDR="-H \"Authorization: Bearer ${GITHUB_TOKEN}\""; fi && \
+    RELEASE_JSON=$(eval "curl -s $CURL_HDR 'https://api.github.com/repos/Alex313031/thorium/releases/tags/${THORIUM_VERSION}'") && \
+    DEB_URL=$(echo "$RELEASE_JSON" | grep "browser_download_url" | grep -i "${INSTRUCTION_SET}" | grep "\.deb" | head -n 1 | cut -d '"' -f 4) && \
     if [ -z "$DEB_URL" ]; then \
-        DEB_URL=$(curl -s "https://api.github.com/repos/Alex313031/thorium/releases/tags/${THORIUM_VERSION}" | grep "browser_download_url" | grep "\.deb" | head -n 1 | cut -d '"' -f 4); \
+        DEB_URL=$(echo "$RELEASE_JSON" | grep "browser_download_url" | grep "\.deb" | head -n 1 | cut -d '"' -f 4); \
     fi && \
     if [ -z "$DEB_URL" ]; then \
         DEB_URL="https://github.com/Alex313031/thorium/releases/download/${THORIUM_VERSION}/thorium-browser_${CLEAN_VER}_${INSTRUCTION_SET}.deb"; \
     fi && \
     echo "Fetching ${DEB_URL}" && \
-    wget -q "${DEB_URL}" -O /tmp/thorium.deb && \
+    (wget -q "${DEB_URL}" -O /tmp/thorium.deb || \
+     wget -q "https://github.com/Alex313031/thorium/releases/download/${THORIUM_VERSION}/thorium-browser_${CLEAN_VER}_${INSTRUCTION_SET}.deb" -O /tmp/thorium.deb || \
+     wget -q "https://github.com/Alex313031/thorium/releases/download/${THORIUM_VERSION}/thorium-browser_${CLEAN_VER}_AVX2.deb" -O /tmp/thorium.deb) && \
     apt-get update && \
     apt-get install -y /tmp/thorium.deb && \
     rm /tmp/thorium.deb && \
@@ -98,24 +104,31 @@ RUN echo "Installing Thorium ${THORIUM_VERSION} for ${INSTRUCTION_SET}..." && \
 # Symlink binary for convenience
 RUN ln -sf /opt/chromium.org/thorium/thorium-browser /usr/bin/thorium-browser || true
 
-# Create Clean Startup Wrapper Script using unquoted heredoc block
+# Create Clean Startup Wrapper Script using SERVERARGS env var for xvfb-run
 RUN cat << 'EOF' > /usr/bin/wrapped-thorium
 #!/bin/bash
+set -f
 BIN=/opt/chromium.org/thorium/thorium-browser
 if [ ! -f "$BIN" ]; then BIN=$(which thorium-browser || which thorium); fi
-if ! pgrep thorium > /dev/null; then
-  rm -f /data/thorium_profile/Singleton*
-fi
+
+# Remove stale profile lock files unconditionally before startup
+rm -f /data/thorium_profile/Singleton*
+
 socat TCP-LISTEN:9222,fork,reuseaddr TCP:127.0.0.1:9223 &
 WS="${WINDOW_SIZE:-1280,720}"
+WS_X="${WS//,/x}"
 FLAGS=(
   "--no-sandbox"
   "--disable-dev-shm-usage"
+  "--no-first-run"
+  "--no-default-browser-check"
   "--user-data-dir=/data/thorium_profile"
   "--remote-debugging-port=9223"
   "--remote-debugging-address=127.0.0.1"
   "--remote-allow-origins=*"
   "--window-size=${WS}"
+  "--disable-gpu"
+  "--disable-software-rasterizer"
 )
 if [ "$DISABLE_PASSKEYS" = "true" ]; then
   FLAGS+=("--disable-features=WebAuthentication,WebAuthenticationUI,PasskeyRegistration,WebAuthenticationConditionalUI")
@@ -135,10 +148,10 @@ if [ -n "$EXTRA_FLAGS" ]; then
   FLAGS+=("${EXTRA_ARR[@]}")
 fi
 if [ "$USE_XVFB" = "true" ]; then
-  echo "Starting with Xvfb virtual display (${WS})..."
-  exec xvfb-run -a --server-args="-screen 0 1280x720x24" "${BIN}" "${FLAGS[@]}" "$@"
+  echo "Starting with Xvfb virtual display (${WS_X})..."
+  exec xvfb-run -a -s "-screen 0 ${WS_X}x24" "${BIN}" "${FLAGS[@]}" "$@"
 else
-  exec "${BIN}" --headless=new --disable-gpu --disable-software-rasterizer "${FLAGS[@]}" "$@"
+  exec "${BIN}" --headless=new "${FLAGS[@]}" "$@"
 fi
 EOF
 RUN chmod +x /usr/bin/wrapped-thorium

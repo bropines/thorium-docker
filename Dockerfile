@@ -97,7 +97,7 @@ RUN echo "Installing Thorium ${THORIUM_VERSION} for ${INSTRUCTION_SET}..." && \
 # Symlink binary for convenience
 RUN ln -sf /opt/chromium.org/thorium/thorium-browser /usr/bin/thorium-browser || true
 
-# Create Ultimate Startup Wrapper Script
+# Create Ultimate Startup Wrapper Script supporting dynamic environment flags
 RUN echo '#!/bin/bash' > /usr/bin/wrapped-thorium && \
     echo 'BIN=/opt/chromium.org/thorium/thorium-browser' >> /usr/bin/wrapped-thorium && \
     echo 'if [ ! -f "$BIN" ]; then BIN=$(which thorium-browser || which thorium); fi' >> /usr/bin/wrapped-thorium && \
@@ -105,7 +105,23 @@ RUN echo '#!/bin/bash' > /usr/bin/wrapped-thorium && \
     echo '  rm -f /data/thorium_profile/Singleton*' >> /usr/bin/wrapped-thorium && \
     echo 'fi' >> /usr/bin/wrapped-thorium && \
     echo 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:127.0.0.1:9223 &' >> /usr/bin/wrapped-thorium && \
-    echo 'FLAGS=("--no-sandbox" "--disable-dev-shm-usage" "--user-data-dir=/data/thorium_profile" "--remote-debugging-port=9223" "--remote-debugging-address=127.0.0.1" "--remote-allow-origins=*" "--disable-blink-features=AutomationControlled" "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.7204.303 Safari/537.36")' >> /usr/bin/wrapped-thorium && \
+    echo 'FLAGS=("--no-sandbox" "--disable-dev-shm-usage" "--user-data-dir=/data/thorium_profile" "--remote-debugging-port=9223" "--remote-debugging-address=127.0.0.1" "--remote-allow-origins=*")' >> /usr/bin/wrapped-thorium && \
+    echo 'if [ "${DISABLE_PASSKEYS:-true}" = "true" ]; then' >> /usr/bin/wrapped-thorium && \
+    echo '  FLAGS+=("--disable-features=WebAuthentication,WebAuthenticationUI,PasskeyRegistration,WebAuthenticationConditionalUI")' >> /usr/bin/wrapped-thorium && \
+    echo 'fi' >> /usr/bin/wrapped-thorium && \
+    echo 'if [ "${BLOCK_NEW_WINDOWS:-true}" = "true" ]; then' >> /usr/bin/wrapped-thorium && \
+    echo '  FLAGS+=("--block-new-web-contents")' >> /usr/bin/wrapped-thorium && \
+    echo 'fi' >> /usr/bin/wrapped-thorium && \
+    echo 'if [ "${DISABLE_AUTOMATION:-true}" = "true" ]; then' >> /usr/bin/wrapped-thorium && \
+    echo '  FLAGS+=("--disable-blink-features=AutomationControlled")' >> /usr/bin/wrapped-thorium && \
+    echo 'fi' >> /usr/bin/wrapped-thorium && \
+    echo 'UA="${USER_AGENT:-Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.7204.303 Safari/537.36}"' >> /usr/bin/wrapped-thorium && \
+    echo 'FLAGS+=("--user-agent=$UA")' >> /usr/bin/wrapped-thorium && \
+    echo 'if [ -n "$EXTRA_FLAGS" ]; then' >> /usr/bin/wrapped-thorium && \
+    echo '  echo "Appending EXTRA_FLAGS: $EXTRA_FLAGS"' >> /usr/bin/wrapped-thorium && \
+    echo '  eval "EXTRA_ARR=($EXTRA_FLAGS)"' >> /usr/bin/wrapped-thorium && \
+    echo '  FLAGS+=("${EXTRA_ARR[@]}")' >> /usr/bin/wrapped-thorium && \
+    echo 'fi' >> /usr/bin/wrapped-thorium && \
     echo 'if [ "$USE_XVFB" = "true" ]; then' >> /usr/bin/wrapped-thorium && \
     echo '  echo "Starting with Xvfb virtual display..."' >> /usr/bin/wrapped-thorium && \
     echo '  exec xvfb-run --server-args="-screen 0 ${WINDOW_SIZE:-1280x720x24}" ${BIN} "${FLAGS[@]}" "$@"' >> /usr/bin/wrapped-thorium && \

@@ -1,73 +1,28 @@
-version: '3.8'
-
 services:
-  # Ready-to-use production CDP service pulling pre-built Alpine image from GHCR
   thorium-browser:
     image: ghcr.io/bropines/thorium-docker:latest
     container_name: thorium-browser
     restart: unless-stopped
     ports:
       - "9222:9222"
+    environment:
+      - USE_XVFB=true
+      - DISABLE_PASSKEYS=true
+      - DISABLE_AUTOMATION=true
+      - USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.7204.303 Safari/537.36
+      - >-
+        EXTRA_FLAGS=
+        --remote-debugging-port=9222
+        --remote-debugging-address=0.0.0.0
+        --remote-allow-origins=*
+        --password-store=basic
+        --no-first-run
+        --no-default-browser-check
+        --disable-save-password-bubble
+        --disable-notifications
+        --disable-autofill
+        --disable-features=WebAuthentication,WebAuthenticationUI,Passkeys,PasskeyAuthenticator,PasswordManager,CredentialManager,GooglePasswordManager,AutofillServerCommunication
+        --window-size=1280,720
+        https://google.com
     volumes:
-      - ./MSG/thorium_profile:/data/thorium_profile
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 2G
-
-  # Alpine AVX2
-  thorium-headless-avx2:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        INSTRUCTION_SET: AVX2
-    container_name: thorium-headless-avx2
-    ports:
-      - "9222:9222"
-    volumes:
-      - ./thorium_profile_avx2:/data/thorium_profile
-    restart: unless-stopped
-
-  # Alpine AVX
-  thorium-headless-avx:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        INSTRUCTION_SET: AVX
-    container_name: thorium-headless-avx
-    ports:
-      - "9223:9222"
-    volumes:
-      - ./thorium_profile_avx:/data/thorium_profile
-    restart: unless-stopped
-
-  # Alpine SSE3
-  thorium-headless-sse3:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        INSTRUCTION_SET: SSE3
-    container_name: thorium-headless-sse3
-    ports:
-      - "9224:9222"
-    volumes:
-      - ./thorium_profile_sse3:/data/thorium_profile
-    restart: unless-stopped
-
-  # Alpine SSE4
-  thorium-headless-sse4:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        INSTRUCTION_SET: SSE4
-    container_name: thorium-headless-sse4
-    ports:
-      - "9225:9222"
-    volumes:
-      - ./thorium_profile_sse4:/data/thorium_profile
-    restart: unless-stopped
+      - ./profile:/data/thorium_profile

@@ -30,3 +30,9 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Runtime profiles and data
+thorium_profile*
+MSG/
+profile/
+

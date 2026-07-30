@@ -109,7 +109,7 @@ RUN echo '#!/bin/bash' > /usr/bin/wrapped-thorium && \
     echo 'if [ "${DISABLE_PASSKEYS:-true}" = "true" ]; then' >> /usr/bin/wrapped-thorium && \
     echo '  FLAGS+=("--disable-features=WebAuthentication,WebAuthenticationUI,PasskeyRegistration,WebAuthenticationConditionalUI")' >> /usr/bin/wrapped-thorium && \
     echo 'fi' >> /usr/bin/wrapped-thorium && \
-    echo 'if [ "${BLOCK_NEW_WINDOWS:-true}" = "true" ]; then' >> /usr/bin/wrapped-thorium && \
+    echo 'if [ "${BLOCK_NEW_WINDOWS:-false}" = "true" ]; then' >> /usr/bin/wrapped-thorium && \
     echo '  FLAGS+=("--block-new-web-contents")' >> /usr/bin/wrapped-thorium && \
     echo 'fi' >> /usr/bin/wrapped-thorium && \
     echo 'if [ "${DISABLE_AUTOMATION:-true}" = "true" ]; then' >> /usr/bin/wrapped-thorium && \

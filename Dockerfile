@@ -153,6 +153,11 @@ fi
 BIN=/opt/chromium.org/thorium/thorium-browser
 if [ ! -f "$BIN" ]; then BIN=$(which thorium-browser || which thorium); fi
 
+CMD_STR=""
+for flag in "${FLAGS[@]}"; do
+  CMD_STR="$CMD_STR \"$flag\""
+done
+
 mkdir -p /tmp/supervisor /var/log/supervisor
 
 cat <<CONF > /tmp/supervisord.conf
@@ -184,7 +189,7 @@ stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 
 [program:thorium]
-command=${BIN} ${FLAGS[*]}
+command=${BIN} ${CMD_STR}
 environment=DISPLAY=":99"
 priority=20
 autorestart=true
@@ -196,7 +201,7 @@ CONF
 else
 cat <<CONF >> /tmp/supervisord.conf
 [program:thorium]
-command=${BIN} --headless=new ${FLAGS[*]}
+command=${BIN} --headless=new ${CMD_STR}
 priority=20
 autorestart=true
 stdout_logfile=/dev/stdout

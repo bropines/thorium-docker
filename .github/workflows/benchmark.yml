@@ -47,7 +47,10 @@ jobs:
           if [ -n "${{ github.event.inputs.version }}" ]; then
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
           else
-            LATEST_VERSION=$(curl -s https://api.github.com/repos/Alex313031/thorium/releases/latest | jq -r '.tag_name')
+            LATEST_VERSION=$(curl -s https://api.github.com/repos/Alex313031/thorium/releases | jq -r '.[] | select(.assets[]?.name | endswith(".deb")) | .tag_name' | head -n 1)
+            if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
+              LATEST_VERSION="M138.0.7204.303"
+            fi
             echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
           fi
 
@@ -225,4 +228,4 @@ jobs:
               title: `Weekly Performance Benchmark Report - ${date}`,
               body: `## Weekly Performance Benchmark Results\n\n${report}\n\nThis is an automated weekly benchmark report.`,
               labels: ['benchmark', 'performance', 'automated']
-            }); 
+            });

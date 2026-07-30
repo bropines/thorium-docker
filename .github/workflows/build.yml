@@ -1,4 +1,4 @@
-name: Build and Push Thorium Docker Images
+name: Build and Push Thorium Docker Images (Stable & Beta)
 
 on:
   push:
@@ -10,20 +10,23 @@ on:
     - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
-      instruction_set:
-        description: 'Instruction set to build (AVX2, AVX, SSE3, SSE4, or all)'
+      target_channel:
+        description: 'Channel to build (stable, beta, or all)'
         required: false
         default: 'all'
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  STABLE_VERSION: "M138.0.7204.303"
+  BETA_VERSION: "M150.0.7871.101"
 
 jobs:
   build-thorium-matrix:
     runs-on: ubuntu-latest
     strategy:
       matrix:
+        channel: [stable, beta]
         instruction_set: [AVX2, AVX, SSE3, SSE4]
       fail-fast: false
     permissions:
@@ -43,29 +46,39 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Determine Thorium Version
+        id: set-version
+        run: |
+          if [ "${{ matrix.channel }}" = "stable" ]; then
+            echo "version=${{ env.STABLE_VERSION }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ env.BETA_VERSION }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest-${{ matrix.instruction_set }}
-            type=raw,value=${{ matrix.instruction_set }}
-            type=raw,value=debian-${{ matrix.instruction_set }}
-            type=raw,value=latest,enable=${{ matrix.instruction_set == 'AVX2' }}
+            type=raw,value=${{ matrix.channel }}-${{ matrix.instruction_set }}
+            type=raw,value=${{ matrix.channel }},enable=${{ matrix.instruction_set == 'AVX2' }}
+            type=raw,value=latest-${{ matrix.instruction_set }},enable=${{ matrix.channel == 'stable' }}
+            type=raw,value=latest,enable=${{ matrix.channel == 'stable' && matrix.instruction_set == 'AVX2' }}
+            type=raw,value=${{ matrix.instruction_set }},enable=${{ matrix.channel == 'stable' }}
 
-      - name: Check if instruction set should be built
-        id: check-instruction-set
+      - name: Check if channel should be built
+        id: check-channel
         run: |
-          INPUT_SET="${{ github.event.inputs.instruction_set }}"
-          if [ "$INPUT_SET" = "all" ] || [ -z "$INPUT_SET" ] || [ "$INPUT_SET" = "${{ matrix.instruction_set }}" ]; then
+          INPUT_CHANNEL="${{ github.event.inputs.target_channel }}"
+          if [ "$INPUT_CHANNEL" = "all" ] || [ -z "$INPUT_CHANNEL" ] || [ "$INPUT_CHANNEL" = "${{ matrix.channel }}" ]; then
             echo "should-build=true" >> $GITHUB_OUTPUT
           else
             echo "should-build=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build and push Thorium Docker image (${{ matrix.instruction_set }})
-        if: steps.check-instruction-set.outputs.should-build == 'true'
+      - name: Build and push Thorium Docker image (${{ matrix.channel }} - ${{ matrix.instruction_set }})
+        if: steps.check-channel.outputs.should-build == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -74,6 +87,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
+            THORIUM_VERSION=${{ steps.set-version.outputs.version }}
             INSTRUCTION_SET=${{ matrix.instruction_set }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

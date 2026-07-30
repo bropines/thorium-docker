@@ -1,114 +1,114 @@
-# Thorium Docker
+# Thorium Docker (Stable & Beta)
 
-Высокопроизводительный Docker-образ браузера Thorium, оптимизированный для работы в headless-режиме и веб-скрапинга. Поддерживает различные наборы инструкций CPU.
+Высокопроизводительный, мульти-платформенный Docker-образ браузера **Thorium**, оптимизированный для веб-скрапинга, автоматизации (Playwright, Selenium, Puppeteer), медиа-стриминга и удаленной отладки по CDP.
 
-## Обзор проекта
+---
 
-[Thorium](https://github.com/Alex313031/thorium) — это оптимизированная по производительности версия браузера на базе Chromium (прирост производительности на 8%-38% по сравнению с обычным Chromium).
+## 📌 Особенности и возможности
 
-Этот проект предоставляет автоматическую сборку и публикацию Docker-образов в **GitHub Container Registry (GHCR)**:
+- 🚀 **Официальные сборки Thorium**: Скачивание и установка оригинальных `.deb` пакетов от [Alex313031/thorium](https://github.com/Alex313031/thorium/releases) под все наборы инструкций CPU (`AVX2`, `AVX`, `SSE3`, `SSE4`).
+- ⚡ **Два канала релиза**:
+  - **`stable` / `latest`**: Последняя стабильная версия (Thorium M138).
+  - **`beta`**: Свежая бета-версия (Thorium M150 / M144).
+- 🎬 **Полный медиа-стек**: Встроенные кодеки `ffmpeg`, поддержка Widevine DRM и аудио-сервисов (ALSA/PulseAudio).
+- 🔤 **Мультиязычные шрифты**: Заранее установлены шрифты CJK (китайский, японский, корейский), кириллица, Emoji и FreeFont (`fonts-wqy-zenhei`, `fonts-noto-color-emoji`, `fonts-liberation`, `fonts-dejavu`).
+- 🛡️ **Anti-Bot & Google OAuth Stealth**: 
+  - Отключены флаги автоматизации (`--disable-blink-features=AutomationControlled`).
+  - Актуальный десктопный Chrome User-Agent.
+  - Автоматическая очистка Singleton-блокировок профиля.
+- 🖥️ **Поддержка Headless и Xvfb (Virtual Display)**:
+  - Режим по умолчанию: `--headless=new`.
+  - Режим Xvfb: Установите переменную `USE_XVFB=true`, чтобы запустить браузер на виртуальном дисплее (обходит продвинутые проверки на headless у Cloudflare / Google).
+- 🔌 **Безопасный CDP Bridge (порт 9222)**: Встроенный `socat`-мост для безопасного проброса `0.0.0.0:9222 -> 127.0.0.1:9223` (обходит ограничения лупбэка Chromium M113+).
 
-- 🚀 Автоматическое определение новых версий Thorium
-- 🔄 Автоматическая сборка через GitHub Actions
-- 🐳 Публикация в GHCR (`ghcr.io/bropines/thorium-docker`)
-- 🌍 Поддержка шрифтов CJK (китайский, японский, корейский) и кириллицы
-- 🔒 Безопасный запуск от имени не-root пользователя
-- 📸 Оптимизация для снятия скриншотов и веб-скрапинга
-- ⚡ **Поддержка различных наборов инструкций CPU** (AVX2, AVX, SSE3, SSE4)
-- 📊 **Бенчмарки производительности** (сравнение с chromedp/docker-headless-shell)
+---
 
-## Поддержка инструкций CPU
+## 🐳 Теги контейнеров в GHCR (`ghcr.io/bropines/thorium-docker`)
 
-| Набор инструкций | Производительность | Совместимость | Рекомендуемый сценарий |
-|---|---|---|---|
-| **AVX2** | Максимальная | Современные CPU (2013+) | Продакшн, высокая нагрузка |
-| **AVX** | Высокая | Более старые CPU (2011+) | Баланс производительности и совместимости |
-| **SSE3** | Средняя | Старые CPU (2004+) | Базовая совместимость |
-| **SSE4** | Базовая | Максимально широкая | Максимальная совместимость |
+### Стабильный канал (Stable / Latest):
+- `latest`, `stable`, `latest-AVX2`, `stable-AVX2` — Версия AVX2 (Рекомендуется)
+- `latest-AVX`, `stable-AVX` — Версия AVX
+- `latest-SSE3`, `stable-SSE3` — Версия SSE3
+- `latest-SSE4`, `stable-SSE4` — Версия SSE4
 
-## Особенности
+### Бета канал (Beta):
+- `beta`, `beta-AVX2` — Бета-версия AVX2
+- `beta-AVX`, `beta-SSE3`, `beta-SSE4` — Бета-версии под другие CPU
 
-- **Высокая производительность**: Движок Thorium с оптимизациями под CPU
-- **Headless режим**: Разработан специально для автоматического тестирования и скрапинга
-- **Мультиязычность**: Встроенные шрифты CJK, Emoji и поддержка UTF-8
-- **Безопасность**: Запуск от не-root пользователя (`thorium`)
-- **Удаленная отладка**: Поддержка Chrome DevTools Remote Debugging (порт 9222)
-- **CI/CD**: Полная автоматизация сборки и публикации в `ghcr.io`
+---
 
-## Быстрый старт
+## 🚀 Быстрый запуск
 
-### Использование готовых контейнеров из GHCR
+### 1. Запуск через Docker run (CDP Headless)
 
 ```bash
-# Выкачать образ с поддержкой AVX2 (рекомендуется)
-docker pull ghcr.io/bropines/thorium-docker:latest-avx2
-
-# Запустить контейнер AVX2
 docker run -d \
-  --name thorium-headless \
+  --name thorium-browser \
   -p 9222:9222 \
+  -v ./profile:/data/thorium_profile \
   --security-opt seccomp=unconfined \
-  --cap-add SYS_ADMIN \
-  ghcr.io/bropines/thorium-docker:latest-avx2
+  ghcr.io/bropines/thorium-docker:latest-AVX2
 ```
 
-### Использование Docker Compose
+### 2. Запуск в режиме Xvfb (Virtual Display для сложной эмуляции)
 
 ```bash
-# Запустить версию AVX2 (по умолчанию)
-docker-compose up -d thorium-headless-avx2
-
-# Запустить версию AVX
-docker-compose up -d thorium-headless-avx
-
-# Запустить версию SSE3
-docker-compose up -d thorium-headless-sse3
-
-# Запустить версию SSE4
-docker-compose up -d thorium-headless-sse4
-
-# Проверить статус удаленной отладки
-curl http://localhost:9222/json/version  # AVX2
+docker run -d \
+  --name thorium-browser-xvfb \
+  -p 9222:9222 \
+  -e USE_XVFB=true \
+  -e WINDOW_SIZE=1920x1080x24 \
+  -v ./profile:/data/thorium_profile \
+  ghcr.io/bropines/thorium-docker:latest-AVX2
 ```
 
-### Подключение через Selenium (Python)
+### 3. Использование Docker Compose
 
+```yaml
+services:
+  thorium-browser:
+    image: ghcr.io/bropines/thorium-docker:latest-AVX2
+    container_name: thorium-browser
+    restart: unless-stopped
+    network_mode: "host"
+    environment:
+      - WINDOW_SIZE=1280,720
+      - USE_XVFB=false
+    volumes:
+      - ./profile:/data/thorium_profile
+```
+
+---
+
+## 💻 Подключение автотестов и скраперов
+
+### Selenium (Python):
 ```python
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
 chrome_options = Options()
-chrome_options.add_experimental_option("debuggerAddress", "localhost:9222")
+chrome_options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
 
 driver = webdriver.Chrome(options=chrome_options)
-driver.get("https://example.com")
-driver.save_screenshot("screenshot.png")
-driver.quit()
+driver.get("https://google.com")
+print(driver.title)
 ```
 
-## Разработка и локальная сборка
+### Playwright (Node.js):
+```javascript
+const { chromium } = require('playwright');
 
-```bash
-# Сборка версии AVX2 (по умолчанию)
-make build-avx2
-
-# Сборка всех версий
-make build-all
-
-# Запуск тестов
-make test
+(async () => {
+  const browser = await chromium.connectOverCDP('http://127.0.0.1:9222');
+  const context = browser.contexts()[0];
+  const page = await context.newPage();
+  await page.goto('https://google.com');
+})();
 ```
 
-## Теги контейнеров в GHCR
+---
 
-Каждая сборка публикует следующие теги в `ghcr.io/bropines/thorium-docker`:
-
-- `latest`, `latest-avx2`, `avx2` — Рекомендуемая версия AVX2
-- `latest-avx`, `avx` — Версия AVX
-- `latest-sse3`, `sse3` — Версия SSE3
-- `latest-sse4`, `sse4` — Версия SSE4
-- `{version}-AVX2`, `{version}-AVX` и т.д. — Конкретные версии Thorium
-
-## Лицензия
+## 📄 Лицензия
 
 BSD 3-Clause License

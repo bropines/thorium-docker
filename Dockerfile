@@ -98,7 +98,7 @@ RUN echo "Installing Thorium ${THORIUM_VERSION} for ${INSTRUCTION_SET}..." && \
 # Symlink binary for convenience
 RUN ln -sf /opt/chromium.org/thorium/thorium-browser /usr/bin/thorium-browser || true
 
-# Create Clean Startup Wrapper Script: Supports xauth, Xvfb virtual display, stealth UA and flags
+# Create Clean Startup Wrapper Script: Supports xauth, Xvfb virtual display (-a flag), stealth UA and flags
 RUN echo '#!/bin/bash' > /usr/bin/wrapped-thorium && \
     echo 'BIN=/opt/chromium.org/thorium/thorium-browser' >> /usr/bin/wrapped-thorium && \
     echo 'if [ ! -f "$BIN" ]; then BIN=$(which thorium-browser || which thorium); fi' >> /usr/bin/wrapped-thorium && \

@@ -149,7 +149,7 @@ if [ -n "$EXTRA_FLAGS" ]; then
 fi
 if [ "$USE_XVFB" = "true" ]; then
   echo "Starting with Xvfb virtual display (${WS_X})..."
-  exec xvfb-run -a --server-args="-screen 0 ${WS_X}x24" "${BIN}" "${FLAGS[@]}" "$@"
+  exec xvfb-run -a "${BIN}" "${FLAGS[@]}" "$@"
 else
   exec "${BIN}" --headless=new "${FLAGS[@]}" "$@"
 fi

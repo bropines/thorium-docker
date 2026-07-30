@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     dpkg \
     procps \
     socat \
+    supervisor \
     xvfb \
     xauth \
     x11vnc \
@@ -104,12 +105,10 @@ RUN echo "Installing Thorium ${THORIUM_VERSION} for ${INSTRUCTION_SET}..." && \
 # Symlink binary for convenience
 RUN ln -sf /opt/chromium.org/thorium/thorium-browser /usr/bin/thorium-browser || true
 
-# Create Clean Startup Wrapper Script using SERVERARGS env var for xvfb-run
+# Create Clean Startup Wrapper Script using supervisord and socat relay
 RUN cat << 'EOF' > /usr/bin/wrapped-thorium
 #!/bin/bash
-set -f
-BIN=/opt/chromium.org/thorium/thorium-browser
-if [ ! -f "$BIN" ]; then BIN=$(which thorium-browser || which thorium); fi
+set -e
 
 # Remove stale profile lock files unconditionally before startup
 rm -f /data/thorium_profile/Singleton*
@@ -122,8 +121,8 @@ FLAGS=(
   "--no-first-run"
   "--no-default-browser-check"
   "--user-data-dir=/data/thorium_profile"
-  "--remote-debugging-port=9222"
-  "--remote-debugging-address=0.0.0.0"
+  "--remote-debugging-port=9223"
+  "--remote-debugging-address=127.0.0.1"
   "--remote-allow-origins=*"
   "--window-size=${WS}"
   "--disable-gpu"
@@ -146,12 +145,68 @@ if [ -n "$EXTRA_FLAGS" ]; then
   eval "EXTRA_ARR=($EXTRA_FLAGS)"
   FLAGS+=("${EXTRA_ARR[@]}")
 fi
-if [ "$USE_XVFB" = "true" ]; then
-  echo "Starting with Xvfb virtual display (${WS_X})..."
-  exec xvfb-run -a "${BIN}" "${FLAGS[@]}" "$@"
-else
-  exec "${BIN}" --headless=new "${FLAGS[@]}" "$@"
+
+if [ $# -gt 0 ]; then
+  FLAGS+=("$@")
 fi
+
+BIN=/opt/chromium.org/thorium/thorium-browser
+if [ ! -f "$BIN" ]; then BIN=$(which thorium-browser || which thorium); fi
+
+mkdir -p /tmp/supervisor /var/log/supervisor
+
+cat <<CONF > /tmp/supervisord.conf
+[supervisord]
+nodaemon=true
+logfile=/tmp/supervisord.log
+pidfile=/tmp/supervisord.pid
+
+[program:socat]
+command=socat TCP-LISTEN:9222,fork,reuseaddr TCP:127.0.0.1:9223
+priority=10
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+
+CONF
+
+if [ "$USE_XVFB" = "true" ]; then
+cat <<CONF >> /tmp/supervisord.conf
+[program:xvfb]
+command=Xvfb :99 -screen 0 ${WS_X}x24 -nolisten tcp
+priority=5
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+
+[program:thorium]
+command=${BIN} ${FLAGS[*]}
+environment=DISPLAY=":99"
+priority=20
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+CONF
+else
+cat <<CONF >> /tmp/supervisord.conf
+[program:thorium]
+command=${BIN} --headless=new ${FLAGS[*]}
+priority=20
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+CONF
+fi
+
+exec supervisord -c /tmp/supervisord.conf
 EOF
 RUN chmod +x /usr/bin/wrapped-thorium
 

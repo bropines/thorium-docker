@@ -28,3 +28,7 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp 
+# Runtime profiles
+profile/
+thorium_profile*
+MSG/

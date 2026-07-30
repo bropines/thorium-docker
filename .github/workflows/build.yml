@@ -1,4 +1,4 @@
-name: Build and Push Alpine Docker Images
+name: Build and Push Thorium Docker Images
 
 on:
   push:
@@ -20,7 +20,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-alpine-matrix:
+  build-thorium-matrix:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -51,7 +51,7 @@ jobs:
           tags: |
             type=raw,value=latest-${{ matrix.instruction_set }}
             type=raw,value=${{ matrix.instruction_set }}
-            type=raw,value=alpine-${{ matrix.instruction_set }}
+            type=raw,value=debian-${{ matrix.instruction_set }}
             type=raw,value=latest,enable=${{ matrix.instruction_set == 'AVX2' }}
 
       - name: Check if instruction set should be built
@@ -64,7 +64,7 @@ jobs:
             echo "should-build=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build and push Alpine Docker image (${{ matrix.instruction_set }})
+      - name: Build and push Thorium Docker image (${{ matrix.instruction_set }})
         if: steps.check-instruction-set.outputs.should-build == 'true'
         uses: docker/build-push-action@v5
         with:
